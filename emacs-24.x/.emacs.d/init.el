@@ -1,4 +1,6 @@
-;;(setq load-path (cons "~/.emacs.d" load-path))
+(when (featurep 'aquamacs)
+(setq load-path (cons "~/.emacs.d" load-path)))
+
 
 ;; my preferred keybindings
 (global-set-key (kbd "C-x G") 'goto-line)

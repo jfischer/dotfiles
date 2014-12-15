@@ -33,6 +33,18 @@
  (lambda ()
   (column-marker-1 80)))
 
+;; add other package repositories
+(setq package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
+                         ("marmalade" . "https://marmalade-repo.org/packages/")
+                         ("melpa" . "http://melpa.milkbox.net/packages/")))
+
+;; programming language modes
+;; The version is hard-coded in this - not sure why emacs doesn't
+;; do this automatically.
+(add-to-list 'load-path "~/.emacs.d/elpa/go-mode-20141127.2206")
+(require 'go-mode-autoloads)
+
+
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
  ;; If you edit it by hand, you could mess it up, so be careful.

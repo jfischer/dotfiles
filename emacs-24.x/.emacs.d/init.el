@@ -33,15 +33,37 @@
  (lambda ()
   (column-marker-1 80)))
 
+;; define function to run pyflakes on the current (python) buffer
+(defun get-default-pyflakes-path ()
+  (let ((pyflakes-where-result
+	(replace-regexp-in-string "\n\\'" "" 
+				  (shell-command-to-string "which pyflakes"))))
+    (if (equal pyflakes-where-result "")
+	"NEED-TO-SET-PYFLAKES_PATH")
+     pyflakes-where-result))
+
+(defvar pyflakes-path
+  (get-default-pyflakes-path)
+  "Path to pyflakes utility")
+(defun pyflakes ()
+  "Run the pyflakes utility on the current buffer"
+  (interactive)
+  (if (not (equal mode-name "Python"))
+      (error
+       (concat "pyflakes only runs on buffers in Python mode, this buffer is '"
+	       mode-name "'")))
+  (compile (concat pyflakes-path " " buffer-file-name)))
+(global-set-key (kbd "<f1> p") 'pyflakes)
+
 ;; add other package repositories
-(setq package-archives '(("gnu" . "http://elpa.gnu.org/packages/")
-                         ("marmalade" . "https://marmalade-repo.org/packages/")
-                         ("melpa" . "http://melpa.milkbox.net/packages/")))
+(require 'package)
+(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+(add-to-list 'package-archives '("marmalade" . "http://marmalade-repo.org/packages/"))
 
 ;; programming language modes
 ;; The version is hard-coded in this - not sure why emacs doesn't
 ;; do this automatically.
-(add-to-list 'load-path "~/.emacs.d/elpa/go-mode-20141127.2206")
+(add-to-list 'load-path "~/.emacs.d/elpa/go-mode-20160715.205")
 (require 'go-mode-autoloads)
 
 
@@ -50,7 +72,9 @@
  ;; If you edit it by hand, you could mess it up, so be careful.
  ;; Your init file should contain only one such instance.
  ;; If there is more than one, they won't work right.
- '(custom-safe-themes (quote ("fc5fcb6f1f1c1bc01305694c59a1a861b008c534cae8d0e48e4d5e81ad718bc6" "1e7e097ec8cb1f8c3a912d7e1e0331caeed49fef6cff220be63bd2a6ba4cc365" default)))
+ '(custom-safe-themes
+   (quote
+    ("bffa9739ce0752a37d9b1eee78fc00ba159748f50dc328af4be661484848e476" "fc5fcb6f1f1c1bc01305694c59a1a861b008c534cae8d0e48e4d5e81ad718bc6" "1e7e097ec8cb1f8c3a912d7e1e0331caeed49fef6cff220be63bd2a6ba4cc365" default)))
  '(scroll-bar-mode nil)
  '(tool-bar-mode nil))
 (custom-set-faces

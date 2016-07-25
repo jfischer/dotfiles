@@ -1,10 +1,10 @@
 ;;; nlinum.el --- Show line numbers in the margin  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2012, 2014  Free Software Foundation, Inc.
+;; Copyright (C) 2012, 2014, 2015  Free Software Foundation, Inc.
 
 ;; Author: Stefan Monnier <monnier@iro.umontreal.ca>
 ;; Keywords: convenience
-;; Version: 1.2
+;; Version: 1.6
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -25,6 +25,10 @@
 ;; more efficient.
 
 ;;; News:
+
+;; v1.3:
+;; - New custom variable `nlinum-format'.
+;; - Change in calling convention of `nlinum-format-function'.
 
 ;; v1.2:
 ;; - New global mode `global-nlinum-mode'.
@@ -50,20 +54,46 @@ Linum mode is a buffer-local minor mode."
   :lighter nil ;; (" NLinum" nlinum--desc)
   (jit-lock-unregister #'nlinum--region)
   (remove-hook 'window-configuration-change-hook #'nlinum--setup-window t)
-  (remove-hook 'after-change-functions #'nlinum--after-change)
+  (remove-hook 'text-scale-mode-hook #'nlinum--setup-window t)
+  (remove-hook 'after-change-functions #'nlinum--after-change t)
   (kill-local-variable 'nlinum--line-number-cache)
   (remove-overlays (point-min) (point-max) 'nlinum t)
   ;; (kill-local-variable 'nlinum--ol-counter)
   (kill-local-variable 'nlinum--width)
   (when nlinum-mode
+    ;; FIXME: Another approach would be to make the mode permanent-local,
+    ;; which might indeed be preferable.
+    (add-hook 'change-major-mode-hook (lambda () (nlinum-mode -1)))
+    (add-hook 'text-scale-mode-hook #'nlinum--setup-window nil t)
     (add-hook 'window-configuration-change-hook #'nlinum--setup-window nil t)
     (add-hook 'after-change-functions #'nlinum--after-change nil t)
     (jit-lock-register #'nlinum--region t))
   (nlinum--setup-windows))
 
+(defun nlinum--face-height (face)
+  (aref (font-info (face-font face)) 2))
+
+(defun nlinum--face-width (face)        ;New info only in Emacs>=25.
+  (let ((fi (font-info (face-font face))))
+    (when (> (length fi) 11)
+      (let ((width (aref fi 11)))
+        (if (<= width 0)
+            (aref fi 10)
+          width)))))
+
 (defun nlinum--setup-window ()
-  (set-window-margins nil (if nlinum-mode nlinum--width)
-                      (cdr (window-margins))))
+  (let ((width (if (display-graphic-p)
+                   (ceiling
+                    (let ((width (nlinum--face-width 'linum)))
+                      (if width
+                          (/ (* nlinum--width 1.0 width)
+                             (frame-char-width))
+                        (/ (* nlinum--width 1.0
+                              (nlinum--face-height 'linum))
+                           (frame-char-height)))))
+                 nlinum--width)))
+    (set-window-margins nil (if nlinum-mode width)
+                        (cdr (window-margins)))))
 
 (defun nlinum--setup-windows ()
   (dolist (win (get-buffer-window-list nil nil t))
@@ -77,6 +107,8 @@ Linum mode is a buffer-local minor mode."
                   (lambda (buf)
                     (with-current-buffer buf
                       (with-silent-modifications
+                        ;; FIXME: only remove `fontified' on those parts of the
+                        ;; buffer that had an nlinum overlay!
                         (remove-text-properties
                          (point-min) (point-max) '(fontified)))))
                   (current-buffer)))
@@ -130,6 +162,14 @@ Linum mode is a buffer-local minor mode."
 (defvar nlinum--line-number-cache nil)
 (make-variable-buffer-local 'nlinum--line-number-cache)
 
+;; We could try and avoid flushing the cache at every change, e.g. with:
+;;   (defun nlinum--before-change (start _end)
+;;     (if (and nlinum--line-number-cache
+;;              (< start (car nlinum--line-number-cache)))
+;;         (save-excursion (goto-char start) (nlinum--line-number-at-pos))))
+;; But it's far from clear that it's worth the trouble.  The current simplistic
+;; approach seems to be good enough in practice.
+
 (defun nlinum--after-change (&rest _args)
   (setq nlinum--line-number-cache nil))
 
@@ -149,14 +189,24 @@ Linum mode is a buffer-local minor mode."
     (setq nlinum--line-number-cache (cons (point) pos))
     pos))
 
+(defcustom nlinum-format "%d"
+  "Format of the line numbers.
+Used by the default `nlinum-format-function'."
+  :type 'string
+  :group 'linum)
+
 (defvar nlinum-format-function
-  (lambda (line)
-    (let* ((fmt (format "%%%dd" nlinum--width))
-           (str (propertize (format fmt line) 'face 'linum)))
+  (lambda (line width)
+    (let ((str (format nlinum-format line)))
+      (when (< (length str) width)
+        ;; Left pad to try and right-align the line-numbers.
+        (setq str (concat (make-string (- width (length str)) ?\ ) str)))
+      (put-text-property 0 width 'face 'linum str)
       str))
   "Function to build the string representing the line number.
-Takes one argument (the line number) and returns a string whose width
-should be at least equal to `nlinum--width'.")
+Takes 2 arguments LINE and WIDTH, both of them numbers, and should return
+a string.  WIDTH is the ideal width of the result.  If the result is larger,
+it may cause the margin to be resized and line numbers to be recomputed.")
 
 (defun nlinum--region (start limit)
   (save-excursion
@@ -170,7 +220,8 @@ should be at least equal to `nlinum--width'.")
         (while
             (and (not (eobp)) (< (point) limit)
                  (let* ((ol (make-overlay (point) (1+ (point))))
-                        (str (funcall nlinum-format-function line))
+                        (str (funcall nlinum-format-function
+                                      line nlinum--width))
                         (width (string-width str)))
                    (when (< nlinum--width width)
                      (setq nlinum--width width)
@@ -195,6 +246,34 @@ should be at least equal to `nlinum--width'.")
 
 ;;;; ChangeLog:
 
+;; 2015-02-09  Stefan Monnier  <monnier@iro.umontreal.ca>
+;; 
+;; 	* nlinum.el: Use face-width if available.  Hook into text-scale-mode
+;; 
+;; 2014-07-02  Stefan Monnier  <monnier@iro.umontreal.ca>
+;; 
+;; 	Fixes: debbugs:17906
+;; 
+;; 	* packages/nlinum/nlinum.el (nlinum--setup-window): Don't burp in 
+;; 	non-graphic terminals.
+;; 
+;; 2014-06-20  Stefan Monnier  <monnier@iro.umontreal.ca>
+;; 
+;; 	* packages/nlinum/nlinum.el (nlinum--face-height): New function.
+;; 	(nlinum--setup-window): Use it.
+;; 
+;; 2014-05-26  Stefan Monnier  <monnier@iro.umontreal.ca>
+;; 
+;; 	* packages/nlinum/nlinum.el (nlinum-mode): Don't leave overlays around
+;; 	when switching major mode.
+;; 
+;; 2014-04-29  Stefan Monnier  <monnier@iro.umontreal.ca>
+;; 
+;; 	* nlinum.el (nlinum-format): New custom variable.
+;; 	(nlinum--region): Change calling convention of nlinum-format-function.
+;; 	(nlinum-format-function): Change default value accordingly; Use
+;; 	nlinum-format; Try to generate less garbage.
+;; 
 ;; 2014-01-02  Stefan Monnier  <monnier@iro.umontreal.ca>
 ;; 
 ;; 	* nlinum.el: Add global-nlinum-mode and nlinum-format-function.

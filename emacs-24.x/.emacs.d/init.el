@@ -39,8 +39,8 @@
 	(replace-regexp-in-string "\n\\'" "" 
 				  (shell-command-to-string "which pyflakes"))))
     (if (equal pyflakes-where-result "")
-	"NEED-TO-SET-PYFLAKES_PATH")
-     pyflakes-where-result))
+	"NEED-TO-SET-PYFLAKES_PATH"
+     pyflakes-where-result)))
 
 (defvar pyflakes-path
   (get-default-pyflakes-path)

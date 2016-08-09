@@ -53,7 +53,9 @@
        (concat "pyflakes only runs on buffers in Python mode, this buffer is '"
 	       mode-name "'")))
   (compile (concat pyflakes-path " " buffer-file-name)))
-(global-set-key (kbd "<f1> p") 'pyflakes)
+(add-hook 'python-mode-hook
+	  (lambda () (define-key python-mode-map (kbd "M-p") 'pyflakes)))
+
 
 ;; add other package repositories
 (require 'package)

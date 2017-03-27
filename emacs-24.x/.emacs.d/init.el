@@ -57,6 +57,7 @@
 	  (lambda () (define-key python-mode-map (kbd "M-p") 'pyflakes)))
 
 
+
 ;; add other package repositories
 (require 'package)
 (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
@@ -68,6 +69,7 @@
 (add-to-list 'load-path "~/.emacs.d/elpa/go-mode-20160715.205")
 (require 'go-mode-autoloads)
 
+(add-to-list 'custom-theme-load-path "~/.emacs.d/themes")
 
 (custom-set-variables
  ;; custom-set-variables was added by Custom.
@@ -76,7 +78,7 @@
  ;; If there is more than one, they won't work right.
  '(custom-safe-themes
    (quote
-    ("bffa9739ce0752a37d9b1eee78fc00ba159748f50dc328af4be661484848e476" "fc5fcb6f1f1c1bc01305694c59a1a861b008c534cae8d0e48e4d5e81ad718bc6" "1e7e097ec8cb1f8c3a912d7e1e0331caeed49fef6cff220be63bd2a6ba4cc365" default)))
+    ("fa2b58bb98b62c3b8cf3b6f02f058ef7827a8e497125de0254f56e373abee088" "c924950f6b5b92a064c5ad7063bb34fd3facead47cd0d761a31e7e76252996f7" "bffa9739ce0752a37d9b1eee78fc00ba159748f50dc328af4be661484848e476" "fc5fcb6f1f1c1bc01305694c59a1a861b008c534cae8d0e48e4d5e81ad718bc6" "1e7e097ec8cb1f8c3a912d7e1e0331caeed49fef6cff220be63bd2a6ba4cc365" default)))
  '(scroll-bar-mode nil)
  '(tool-bar-mode nil))
 (custom-set-faces

@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""
+Use the list of comma-separated original/replacment string pairs in
+REPLACE_PAIR_FILE to apply string replacements to the specified files. The
+replacements are applied a line at a time in order.
+"""
+
+import sys
+import argparse
+import os
+import os.path
+import csv
+
+def replace_line(line, patterns):
+    for (orig, repl) in patterns:
+        line = line.replace(orig, repl)
+    return line
+
+def replace(filename, patterns, verbose=False):
+    backup = filename + '.bak'
+    os.rename(filename, backup)
+    lineno = 0
+    replacecnt = 0
+    try:
+        with open(backup, 'r') as f:
+            with open(filename, 'w') as outf:
+                for line in f:
+                    lineno += 1
+                    replline = replace_line(line, patterns)
+                    outf.write(replline)
+                    if replline!=line:
+                        replacecnt += 1
+                        if verbose:
+                            print("%s:%03d %s" % (filename, lineno, replline), end='')
+    except:
+        os.rename(backup, filename)
+        raise
+    else:
+        os.remove(backup)
+        print("%s: %d lines changed out of %d" % (filename, replacecnt, lineno))
+        return replacecnt
+
+        
+def replace_dryrun(filename, patterns, verbose=False):
+    lineno = 0
+    replacecnt = 0
+    with open(filename, 'r') as f:
+        for line in f:
+            lineno += 1
+            replline = replace_line(line, patterns)
+            if replline!=line:
+                replacecnt += 1
+                if verbose:
+                    print("%s:%03d %s" % (filename, lineno, replline), end='')
+    print("%s: %d lines changed out of %d" % (filename, replacecnt, lineno))
+    return replacecnt
+
+
+def main(argv=sys.argv[1:]):
+    parser = argparse.ArgumentParser(description='Apply replacements from the specified file')
+    parser.add_argument('--dry-run', default=False, action='store_true',
+                        help="If specified, just print what would be done")
+    parser.add_argument('--verbose', default=False, action='store_true',
+                        help="If specified, print each line that is changed")
+    parser.add_argument('replace_pair_file', metavar='REPLACE_PAIR_FILE', type=str,
+                        help="Name of file containing comma-separated original/replacment pairs, one per line")
+    parser.add_argument('filenames', metavar='FILENAME', nargs='+',
+                        help="Files to which replacements will be applied")
+    args = parser.parse_args(args=argv)
+    patterns = []
+    with open(args.replace_pair_file) as f:
+        reader = csv.reader(f)
+        rownum = 0
+        for row in reader:
+            rownum += 1
+            if len(row)!=2:
+                parser.error("Invalid line %d in replace pair file %s" %
+                             (rownum, args.replace_pair_file))
+            patterns.append((row[0], row[1]),)
+    # verify all the files exist before running anything
+    for fname in args.filenames:
+        if not os.path.exists(fname):
+            parser.error("File %s does not exist" % fname)
+    replacecnt = 0
+    for fname in args.filenames:
+        if args.dry_run:
+            replacecnt += replace_dryrun(fname, patterns, verbose=args.verbose)
+        else:
+            replacecnt += replace(fname, patterns, verbose=args.verbose)
+    if args.dry_run:
+        print("[DRY_RUN] %d files processed successfully, %d total replacements." %
+              (len(args.filenames), replacecnt))
+    else:
+        print("%d files processed successfully, %d total replacements." %
+              (len(args.filenames), replacecnt))
+
+    return 0 # ok status
+
+
+if __name__=='__main__':
+    sys.exit(main())
+

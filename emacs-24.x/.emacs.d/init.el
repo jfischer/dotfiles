@@ -1,5 +1,12 @@
 (setq load-path (cons "~/.emacs.d/lisp" load-path))
 
+(let ((local-elisp (expand-file-name "~/local.el")))
+  (if (file-exists-p local-elisp)
+      (progn
+	(load-file local-elisp)
+	(message "evaluated local elisp file."))
+    (message "No local.el file present in home directory.")))
+
 (when (featurep 'aquamacs)
  ;; code for aquamacs goes here
  '())
